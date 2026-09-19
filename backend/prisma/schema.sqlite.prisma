@@ -1,0 +1,379 @@
+// Prisma Schema for ClientFlow CRM (SQLite zero-dependency local dev / test)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  SALES
+  MEMBER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  UNQUALIFIED
+}
+
+enum LeadSource {
+  WEBSITE
+  REFERRAL
+  LINKEDIN
+  COLD_OUTREACH
+  INBOUND
+  OTHER
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  CHURNED
+}
+
+enum DealStage {
+  PROSPECTING
+  QUALIFICATION
+  PROPOSAL
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ActivityType {
+  NOTE
+  CALL
+  EMAIL
+  MEETING
+  STATUS_CHANGE
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+model User {
+  id                 String               @id @default(cuid())
+  email              String               @unique
+  passwordHash       String
+  firstName          String
+  lastName           String
+  avatarUrl          String?
+  emailVerified      Boolean              @default(false)
+  verificationToken  String?
+  resetToken         String?
+  resetTokenExpires  DateTime?
+  memberships        OrganizationMember[]
+  refreshTokens      RefreshToken[]
+  assignedLeads      Lead[]               @relation("LeadAssignee")
+  assignedDeals      Deal[]               @relation("DealAssignee")
+  assignedTasks      Task[]               @relation("TaskAssignee")
+  activities         Activity[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([email])
+}
+
+model Organization {
+  id                   String               @id @default(cuid())
+  name                 String
+  slug                 String               @unique
+  logoUrl              String?
+  plan                 String               @default("FREE")
+  stripeCustomerId     String?              @unique
+  stripeSubscriptionId String?              @unique
+  members              OrganizationMember[]
+  invitations          Invitation[]
+  leads                Lead[]
+  customers            Customer[]
+  deals                Deal[]
+  tasks                Task[]
+  activities           Activity[]
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+  subscriptions        Subscription[]
+  payments             Payment[]
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  @@index([slug])
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           String       @default("MEMBER")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model Invitation {
+  id             String           @id @default(cuid())
+  email          String
+  organizationId String
+  role           String           @default("MEMBER")
+  token          String           @unique
+  status         String           @default("PENDING")
+  expiresAt      DateTime
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([organizationId])
+  @@index([token])
+  @@index([email])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+model Lead {
+  id               String          @id @default(cuid())
+  organizationId   String
+  firstName        String
+  lastName         String
+  email            String
+  phone            String?
+  company          String?
+  title            String?
+  status           String          @default("NEW")
+  source           String          @default("WEBSITE")
+  estimatedValue   Float           @default(0)
+  assignedToUserId String?
+  assignedToUser   User?           @relation("LeadAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  organization     Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  convertedCustomer Customer?      @relation("ConvertedFromLead")
+  tasks            Task[]
+  activities       Activity[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([assignedToUserId])
+  @@index([email])
+}
+
+model Customer {
+  id                  String         @id @default(cuid())
+  organizationId      String
+  name                String
+  company             String?
+  email               String
+  phone               String?
+  website             String?
+  address             String?
+  status              String         @default("ACTIVE")
+  convertedFromLeadId String?        @unique
+  convertedFromLead   Lead?          @relation("ConvertedFromLead", fields: [convertedFromLeadId], references: [id], onDelete: SetNull)
+  organization        Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deals               Deal[]
+  tasks               Task[]
+  activities          Activity[]
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([email])
+}
+
+model Deal {
+  id               String       @id @default(cuid())
+  organizationId   String
+  customerId       String
+  title            String
+  amount           Float
+  stage            String       @default("PROSPECTING")
+  probability      Int          @default(20)
+  expectedCloseDate DateTime?
+  assignedToUserId String?
+  assignedToUser   User?        @relation("DealAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer         Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  activities       Activity[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([stage])
+  @@index([customerId])
+  @@index([assignedToUserId])
+}
+
+model Task {
+  id               String       @id @default(cuid())
+  organizationId   String
+  title            String
+  description      String?
+  dueDate          DateTime?
+  priority         String       @default("MEDIUM")
+  status           String       @default("TODO")
+  assignedToUserId String?
+  leadId           String?
+  customerId       String?
+  assignedToUser   User?        @relation("TaskAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead             Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  customer         Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedToUserId])
+  @@index([leadId])
+  @@index([customerId])
+}
+
+model Activity {
+  id                 String       @id @default(cuid())
+  organizationId     String
+  type               String       @default("NOTE")
+  title              String
+  description        String?
+  performedByUserId  String
+  leadId             String?
+  customerId         String?
+  dealId             String?
+  performedByUser    User         @relation(fields: [performedByUserId], references: [id], onDelete: Cascade)
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead               Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  customer           Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  deal               Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  createdAt          DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([performedByUserId])
+  @@index([leadId])
+  @@index([customerId])
+  @@index([dealId])
+}
+
+model Notification {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  type           String
+  title          String
+  message        String
+  link           String?
+  read           Boolean      @default(false)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([read])
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String?
+  action         String
+  entity         String
+  entityId       String?
+  details        String?
+  ipAddress      String?
+  userAgent      String?
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  organizationId       String
+  stripeSubscriptionId String             @unique
+  plan                 String             @default("FREE")
+  status               String             @default("ACTIVE")
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean            @default(false)
+  organization         Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([organizationId])
+  @@index([stripeSubscriptionId])
+}
+
+model Payment {
+  id                    String       @id @default(cuid())
+  organizationId        String
+  stripePaymentIntentId String?      @unique
+  amount                Float
+  currency              String       @default("usd")
+  status                String
+  receiptUrl            String?
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt             DateTime     @default(now())
+
+  @@index([organizationId])
+}
