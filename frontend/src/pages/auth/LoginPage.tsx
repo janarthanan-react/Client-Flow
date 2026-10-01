@@ -45,25 +45,28 @@ export const LoginPage: React.FC = () => {
       success('Welcome back!', 'Successfully logged in to your CRM workspace.');
       navigate('/dashboard');
     } catch (err: any) {
-      const isDemo = data.email === 'demo@clientflow.io';
-      const errMsg = isDemo
-        ? 'Login failed. Please check the demo credentials.'
-        : "Your ID isn't registered yet! Please try the Demo Account.";
-      
+      const errMsg = err?.message || "Your ID isn't registered yet! Please try the Demo Account.";
       setUnregisteredError(errMsg);
-      toastError(
-        isDemo ? 'Login Failed' : 'ID Not Registered',
-        errMsg
-      );
+      toastError('ID Not Registered', errMsg);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fillDemoAccount = () => {
+  const fillAndLoginDemoAccount = async () => {
     setValue('email', 'demo@clientflow.io');
     setValue('password', 'ClientFlow2025!');
     setUnregisteredError(null);
+    try {
+      setIsLoading(true);
+      await login({ email: 'demo@clientflow.io', password: 'ClientFlow2025!' });
+      success('Welcome to ClientFlow!', 'Successfully logged in to Demo Workspace.');
+      navigate('/dashboard');
+    } catch (err: any) {
+      toastError('Login Failed', 'Could not sign in to demo account.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -100,16 +103,17 @@ export const LoginPage: React.FC = () => {
           <div className="text-xs">
             <p className="font-bold text-indigo-950 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
-              Demo Account Available
+              Direct Demo Account
             </p>
             <p className="text-indigo-800 text-[11px] mt-0.5 font-mono">demo@clientflow.io</p>
           </div>
           <button
             type="button"
-            onClick={fillDemoAccount}
-            className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm hover:shadow-indigo-500/25 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-150"
+            onClick={fillAndLoginDemoAccount}
+            disabled={isLoading}
+            className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm hover:shadow-indigo-500/25 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-150 disabled:opacity-60 cursor-pointer"
           >
-            Auto Fill
+            Auto Fill & Sign In
           </button>
         </div>
 
@@ -122,11 +126,12 @@ export const LoginPage: React.FC = () => {
                 <p className="font-bold text-rose-950">{unregisteredError}</p>
                 <button
                   type="button"
-                  onClick={fillDemoAccount}
-                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition-colors shadow-xs"
+                  onClick={fillAndLoginDemoAccount}
+                  disabled={isLoading}
+                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition-colors shadow-xs disabled:opacity-60 cursor-pointer"
                 >
                   <Sparkles className="w-3 h-3" />
-                  Auto Fill Demo Account
+                  Direct Demo Sign In
                 </button>
               </div>
             </div>
@@ -138,7 +143,7 @@ export const LoginPage: React.FC = () => {
                 label="Email address"
                 type="email"
                 autoComplete="email"
-                placeholder="you@company.com"
+                placeholder="yourname@gmail.com"
                 leftIcon={<Mail className="w-4 h-4" />}
                 error={errors.email?.message}
                 {...register('email')}

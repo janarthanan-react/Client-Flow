@@ -272,7 +272,7 @@ export const TasksPage: React.FC = () => {
         description="Schedule a task for yourself or a sales teammate"
       >
         <form onSubmit={handleSubmit((data) => createTaskMutation.mutate(data))} className="space-y-4">
-          <Input label="Task Title" required placeholder="E.g. Follow up on proposal with Marcus" {...register('title', { required: true })} />
+          <Input label="Task Title" required placeholder="E.g. Follow up on proposal" {...register('title', { required: true })} />
           <div>
             <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Description</label>
             <textarea

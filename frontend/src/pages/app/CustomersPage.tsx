@@ -260,10 +260,10 @@ export const CustomersPage: React.FC = () => {
         description="Enter client contact and company information"
       >
         <form onSubmit={handleSubmit((data) => createCustomerMutation.mutate(data))} className="space-y-4">
-          <Input label="Customer / Account Name" required {...register('name', { required: true })} />
+          <Input label="Customer / Account Name" placeholder="Your Name" required {...register('name', { required: true })} />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Company Name" {...register('company')} />
-            <Input label="Work Email" type="email" required {...register('email', { required: true })} />
+            <Input label="Company Name" placeholder="Your Company" {...register('company')} />
+            <Input label="Work Email" type="email" placeholder="yourname@gmail.com" required {...register('email', { required: true })} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label="Phone Number" {...register('phone')} />

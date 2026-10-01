@@ -105,14 +105,14 @@ export const RegisterPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="First Name"
-                placeholder="Sarah"
+                placeholder="Your Name"
                 leftIcon={<User className="w-4 h-4" />}
                 error={errors.firstName?.message}
                 {...register('firstName')}
               />
               <Input
                 label="Last Name"
-                placeholder="Jenkins"
+                placeholder="Last Name"
                 error={errors.lastName?.message}
                 {...register('lastName')}
               />
@@ -120,7 +120,7 @@ export const RegisterPage: React.FC = () => {
 
             <Input
               label="Organization Name"
-              placeholder="Acme Growth Corp"
+              placeholder="Your Company"
               leftIcon={<Building2 className="w-4 h-4" />}
               helperText="This creates your isolated CRM workspace."
               error={errors.organizationName?.message}
@@ -130,7 +130,7 @@ export const RegisterPage: React.FC = () => {
             <Input
               label="Work Email"
               type="email"
-              placeholder="sarah@acmegrowth.com"
+              placeholder="yourname@gmail.com"
               leftIcon={<Mail className="w-4 h-4" />}
               error={errors.email?.message}
               {...register('email')}

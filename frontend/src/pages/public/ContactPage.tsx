@@ -88,8 +88,8 @@ export const ContactPage: React.FC = () => {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
-                <Input label="Your Name" required placeholder="Jane Doe" />
-                <Input label="Work Email" type="email" required placeholder="jane@company.com" />
+                <Input label="Your Name" required placeholder="Your Name" />
+                <Input label="Work Email" type="email" required placeholder="yourname@gmail.com" />
                 <Input label="Subject" required placeholder="Question about Pro Tier" />
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Message</label>

@@ -68,7 +68,7 @@ export const ForgotPasswordPage: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
+                placeholder="yourname@gmail.com"
                 leftIcon={<Mail className="w-4 h-4" />}
                 helperText="We will send a secure reset link to this email."
               />

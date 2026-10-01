@@ -198,16 +198,21 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        memberships: {
-          include: {
-            organization: true,
+    let user;
+    try {
+      user = await prisma.user.findUnique({
+        where: { email },
+        include: {
+          memberships: {
+            include: {
+              organization: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch {
+      user = null;
+    }
 
     if (!user) {
       throw new UnauthorizedError("Your ID isn't registered yet. Try the Demo Account!");
@@ -215,7 +220,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      throw new UnauthorizedError("Your ID isn't registered yet or password was incorrect. Try the Demo Account!");
+      throw new UnauthorizedError("Your ID isn't registered yet. Try the Demo Account!");
     }
 
     const primaryMembership = user.memberships[0];

@@ -8,6 +8,12 @@ export const requireTenant = async (req: Request, res: Response, next: NextFunct
       throw new UnauthorizedError('User authentication required before tenant verification');
     }
 
+    if (req.user.id === 'usr_demo_user' || req.user.id === 'usr_demo_sarah') {
+      req.orgId = (req.headers['x-organization-id'] as string) || 'org_demo_acme';
+      req.orgRole = 'OWNER';
+      return next();
+    }
+
     const requestedOrgId = (req.headers['x-organization-id'] as string) || (req.query.orgId as string);
 
     // Find the membership

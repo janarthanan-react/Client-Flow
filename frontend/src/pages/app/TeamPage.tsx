@@ -230,7 +230,7 @@ export const TeamPage: React.FC = () => {
             label="Email Address"
             type="email"
             required
-            placeholder="colleague@company.com"
+            placeholder="yourname@gmail.com"
             leftIcon={<Mail className="w-4 h-4 text-slate-400" />}
             {...register('email', { required: true })}
           />

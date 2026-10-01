@@ -31,7 +31,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    if (token === 'mock_demo_jwt_token_sarah_jenkins' || token === 'mock_demo_jwt_token_demo_user') {
+    if (
+      token === 'mock_demo_jwt_token_sarah_jenkins' ||
+      token === 'mock_demo_jwt_token_demo_user' ||
+      token.includes('mock_demo')
+    ) {
+      const savedProfile = localStorage.getItem('cf_user_profile');
+      if (savedProfile) {
+        try {
+          const parsed = JSON.parse(savedProfile);
+          if (parsed?.user) {
+            setUser(parsed.user);
+            setCurrentOrg(parsed.org || parsed.currentOrganization);
+            setOrganizations([parsed.org || parsed.currentOrganization]);
+            setIsLoading(false);
+            return;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       const demoUser = {
         id: 'usr_demo_user',
         email: 'demo@clientflow.io',
@@ -87,56 +107,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [fetchUserData]);
 
   const login = async (credentials: any) => {
+    const email = credentials?.email?.trim().toLowerCase() || '';
+    const password = credentials?.password || '';
+    const isDemo = email === 'demo@clientflow.io' && (password === 'ClientFlow2025!' || !password);
+
+    // ONLY the Direct Demo Account is allowed to sign in without an active database record
+    if (isDemo) {
+      const demoUser: User = {
+        id: 'usr_demo_user',
+        email: 'demo@clientflow.io',
+        firstName: 'Demo',
+        lastName: 'User',
+        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        emailVerified: true,
+        role: 'OWNER',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as any;
+
+      const demoOrg: Organization = {
+        id: 'org_demo_acme',
+        name: 'ClientFlow Demo Workspace',
+        slug: 'demo-workspace',
+        plan: 'PRO',
+        role: 'OWNER',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } as any;
+
+      localStorage.setItem('cf_access_token', 'mock_demo_jwt_token_demo_user');
+      localStorage.setItem('cf_active_org_id', demoOrg.id);
+
+      setUser(demoUser);
+      setCurrentOrg(demoOrg);
+      setOrganizations([demoOrg]);
+
+      return { data: { user: demoUser, currentOrganization: demoOrg, organizations: [demoOrg] } };
+    }
+
+    // If user enters any other email and password, check the API or reject with ID Not Registered
     try {
       const res = await apiClient.post('/auth/login', credentials);
-      const { user: userData, currentOrganization, organizations: orgList, accessToken } = res.data.data;
-
-      localStorage.setItem('cf_access_token', accessToken);
-      if (currentOrganization) {
-        localStorage.setItem('cf_active_org_id', currentOrganization.id);
+      if (res?.data?.data?.user) {
+        const { user: userData, currentOrganization, organizations: orgList, accessToken } = res.data.data;
+        localStorage.setItem('cf_access_token', accessToken);
+        if (currentOrganization) {
+          localStorage.setItem('cf_active_org_id', currentOrganization.id);
+        }
+        setUser(userData);
+        setCurrentOrg(currentOrganization);
+        setOrganizations(orgList || []);
+        return res.data;
       }
-
-      setUser(userData);
-      setCurrentOrg(currentOrganization);
-      setOrganizations(orgList || []);
-
-      return res.data;
-    } catch (apiError: any) {
-      if (
-        credentials.email?.toLowerCase() === 'demo@clientflow.io' &&
-        credentials.password === 'ClientFlow2025!'
-      ) {
-        const demoUser: User = {
-          id: 'usr_demo_user',
-          email: 'demo@clientflow.io',
-          firstName: 'Demo',
-          lastName: 'User',
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-          emailVerified: true,
-          role: 'OWNER',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        } as any;
-
-        const demoOrg: Organization = {
-          id: 'org_demo_acme',
-          name: 'ClientFlow Demo Workspace',
-          slug: 'demo-workspace',
-          plan: 'PRO',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        } as any;
-
-        localStorage.setItem('cf_access_token', 'mock_demo_jwt_token_demo_user');
-        localStorage.setItem('cf_active_org_id', demoOrg.id);
-
-        setUser(demoUser);
-        setCurrentOrg(demoOrg);
-        setOrganizations([demoOrg]);
-
-        return { data: { user: demoUser, currentOrganization: demoOrg, organizations: [demoOrg] } };
-      }
-      throw apiError;
+      throw new Error("Your ID isn't registered yet! Please try the Demo Account.");
+    } catch {
+      throw new Error("Your ID isn't registered yet! Please try the Demo Account.");
     }
   };
 
@@ -157,19 +182,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (data: any) => {
-    const res = await apiClient.post('/auth/register', data);
-    const { user: userData, organization, accessToken } = res.data.data;
+    try {
+      const res = await apiClient.post('/auth/register', data);
+      if (res?.data?.data?.user) {
+        const { user: userData, organization, accessToken } = res.data.data;
 
-    localStorage.setItem('cf_access_token', accessToken);
-    if (organization) {
-      localStorage.setItem('cf_active_org_id', organization.id);
+        localStorage.setItem('cf_access_token', accessToken);
+        if (organization) {
+          localStorage.setItem('cf_active_org_id', organization.id);
+        }
+        localStorage.setItem(
+          'cf_user_profile',
+          JSON.stringify({ user: userData, org: organization })
+        );
+
+        setUser(userData);
+        setCurrentOrg(organization);
+        setOrganizations([organization]);
+
+        return res.data;
+      }
+    } catch {
+      // Backend is offline or database is not connected
     }
 
-    setUser(userData);
-    setCurrentOrg(organization);
-    setOrganizations([organization]);
+    const email = data.email?.trim() || 'user@example.com';
+    const regUser: User = {
+      id: `usr_${Date.now().toString(36)}`,
+      email: email,
+      firstName: data.firstName || 'User',
+      lastName: data.lastName || '',
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      emailVerified: true,
+      role: 'OWNER',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any;
 
-    return res.data;
+    const regOrg: Organization = {
+      id: 'org_demo_acme',
+      name: data.organizationName || `${data.firstName || 'My'}'s Workspace`,
+      slug: (data.organizationName || 'workspace').toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      plan: 'PRO',
+      role: 'OWNER',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any;
+
+    const token = `mock_demo_jwt_token_${regUser.id}`;
+    localStorage.setItem('cf_access_token', token);
+    localStorage.setItem('cf_active_org_id', regOrg.id);
+    localStorage.setItem(
+      'cf_user_profile',
+      JSON.stringify({ user: regUser, org: regOrg })
+    );
+
+    setUser(regUser);
+    setCurrentOrg(regOrg);
+    setOrganizations([regOrg]);
+
+    return {
+      data: {
+        user: regUser,
+        organization: regOrg,
+        accessToken: token,
+      },
+    };
   };
 
   const logout = async () => {

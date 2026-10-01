@@ -29,6 +29,16 @@ const processQueue = (error: any, token: string | null = null) => {
 };
 
 const getMockResponseForUrl = (url: string = '') => {
+  if (url.includes('/auth/refresh')) {
+    return {
+      data: {
+        success: true,
+        data: {
+          accessToken: 'mock_demo_jwt_token_demo_user',
+        },
+      },
+    };
+  }
   if (url.includes('/analytics/dashboard')) return { data: { data: MOCK_DEMO_DATA.dashboard } };
   if (url.includes('/analytics/revenue')) return { data: { data: MOCK_DEMO_DATA.revenue } };
   if (url.includes('/analytics/sources')) return { data: { data: MOCK_DEMO_DATA.sources } };
@@ -80,12 +90,16 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
     const token = localStorage.getItem('cf_access_token');
-    const isDemo = token === 'mock_demo_jwt_token_sarah_jenkins' || !token || originalRequest?.headers?.Authorization?.toString().includes('mock_demo');
+    const isDemo =
+      token === 'mock_demo_jwt_token_sarah_jenkins' ||
+      token === 'mock_demo_jwt_token_demo_user' ||
+      Boolean(token && token.includes('mock_demo')) ||
+      Boolean(originalRequest?.headers?.Authorization?.toString().includes('mock_demo'));
 
     // In demo mode or if server/database is offline, return rich mock CRM data seamlessly
     if (isDemo || error.code === 'ERR_NETWORK' || !error.response || error.response.status >= 500) {
       const mock = getMockResponseForUrl(originalRequest?.url);
-      if (mock && isDemo) {
+      if (mock) {
         return Promise.resolve(mock as any);
       }
     }

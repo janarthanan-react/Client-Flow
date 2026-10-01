@@ -401,11 +401,11 @@ export const LeadsPage: React.FC = () => {
       >
         <form onSubmit={handleSubmit((data) => createLeadMutation.mutate(data))} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <Input label="First Name" required {...register('firstName', { required: true })} />
-            <Input label="Last Name" required {...register('lastName', { required: true })} />
+            <Input label="First Name" placeholder="Your Name" required {...register('firstName', { required: true })} />
+            <Input label="Last Name" placeholder="Last Name" required {...register('lastName', { required: true })} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Email" type="email" required {...register('email', { required: true })} />
+            <Input label="Email" type="email" placeholder="yourname@gmail.com" required {...register('email', { required: true })} />
             <Input label="Phone" {...register('phone')} />
           </div>
           <div className="grid grid-cols-2 gap-3">

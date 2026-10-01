@@ -686,7 +686,7 @@ export const BillingPage: React.FC = () => {
                     type="text"
                     value={cardName}
                     onChange={(e) => setCardName(e.target.value)}
-                    placeholder="Full Name as on card"
+                    placeholder="Your Name"
                     className="w-full pl-10 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-colors"
                     required
                   />
