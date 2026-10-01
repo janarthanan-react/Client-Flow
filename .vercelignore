@@ -1,0 +1,4 @@
+# Ignore Dockerfiles so Vercel does not detect Container framework
+**/Dockerfile
+**/Dockerfile.*
+docker-compose*.yml

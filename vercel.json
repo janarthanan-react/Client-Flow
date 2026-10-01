@@ -5,21 +5,26 @@
       "framework": "vite"
     },
     "backend": {
-      "root": "backend"
+      "root": "backend",
+      "framework": "express"
     }
   },
   "rewrites": [
     {
-      "source": "/api(/.*)?",
+      "source": "/api/(.*)",
       "destination": {
-        "type": "service",
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/health",
+      "destination": {
         "service": "backend"
       }
     },
     {
       "source": "/(.*)",
       "destination": {
-        "type": "service",
         "service": "frontend"
       }
     }
