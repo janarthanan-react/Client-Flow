@@ -8,7 +8,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
-import { GoogleLoginButton } from '../../components/auth/GoogleLoginButton';
 
 const registerSchema = z
   .object({
@@ -102,19 +101,6 @@ export const RegisterPage: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
         <div className="bg-white/95 backdrop-blur-md py-8 px-6 sm:px-10 shadow-2xl rounded-3xl border border-slate-200/90">
-          <GoogleLoginButton mode="signup" className="mb-5" />
-
-          <div className="relative mb-5">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
-            </div>
-            <div className="relative flex justify-center text-[11px] uppercase">
-              <span className="bg-white px-2.5 text-slate-400 font-bold tracking-wider">
-                Or sign up with email
-              </span>
-            </div>
-          </div>
-
           <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
             <div className="grid grid-cols-2 gap-3">
               <Input

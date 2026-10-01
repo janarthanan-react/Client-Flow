@@ -168,6 +168,36 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   try {
     const { email, password } = req.body;
 
+    if (email?.toLowerCase() === 'demo@clientflow.io' && password === 'ClientFlow2025!') {
+      const demoUser = {
+        id: 'usr_demo_user',
+        email: 'demo@clientflow.io',
+        firstName: 'Demo',
+        lastName: 'User',
+        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        emailVerified: true,
+      };
+      const demoOrg = {
+        id: 'org_demo_acme',
+        name: 'ClientFlow Demo Workspace',
+        slug: 'demo-workspace',
+        role: 'OWNER',
+        plan: 'PRO',
+      };
+      const { accessToken, refreshToken } = signTokens(demoUser.id, demoUser.email, demoOrg.id);
+      setRefreshTokenCookie(res, refreshToken);
+      return sendSuccess({
+        res,
+        message: 'Login successful',
+        data: {
+          user: demoUser,
+          currentOrganization: demoOrg,
+          organizations: [demoOrg],
+          accessToken,
+        },
+      });
+    }
+
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
@@ -180,12 +210,12 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     });
 
     if (!user) {
-      throw new UnauthorizedError('Invalid email or password');
+      throw new UnauthorizedError("Your ID isn't registered yet. Try the Demo Account!");
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      throw new UnauthorizedError('Invalid email or password');
+      throw new UnauthorizedError("Your ID isn't registered yet or password was incorrect. Try the Demo Account!");
     }
 
     const primaryMembership = user.memberships[0];
@@ -356,6 +386,34 @@ export const getMe = async (req: Request, res: Response, next: NextFunction) => 
   try {
     if (!req.user) {
       throw new UnauthorizedError('Authentication required');
+    }
+
+    if (req.user.id === 'usr_demo_user' || req.user.id === 'usr_demo_sarah') {
+      const demoUser = {
+        id: 'usr_demo_user',
+        email: 'demo@clientflow.io',
+        firstName: 'Demo',
+        lastName: 'User',
+        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        emailVerified: true,
+        createdAt: new Date().toISOString(),
+      };
+      const demoOrg = {
+        id: 'org_demo_acme',
+        name: 'ClientFlow Demo Workspace',
+        slug: 'demo-workspace',
+        logoUrl: null,
+        plan: 'PRO',
+        role: 'OWNER',
+      };
+      return sendSuccess({
+        res,
+        data: {
+          user: demoUser,
+          currentOrganization: demoOrg,
+          organizations: [demoOrg],
+        },
+      });
     }
 
     const user = await prisma.user.findUnique({
@@ -557,16 +615,35 @@ export const googleAuth = async (req: Request, res: Response, next: NextFunction
   try {
     const { credential } = req.body;
 
-    // Verify token with Google
+    // Verify token with Google or Firebase
     let googleUser: any;
     try {
       const googleRes = await fetch(
         `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`
       );
-      if (!googleRes.ok) {
+      if (googleRes.ok) {
+        googleUser = await googleRes.json();
+      } else {
+        // Fallback: support Firebase Auth ID token
+        const parts = credential.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+          if (payload.iss && payload.iss.includes('securetoken.google.com') && payload.email) {
+            googleUser = {
+              email: payload.email,
+              given_name: payload.name?.split(' ')[0] || payload.email.split('@')[0],
+              family_name: payload.name?.split(' ').slice(1).join(' ') || '',
+              picture: payload.picture,
+              sub: payload.sub,
+              isFirebase: true,
+            };
+          }
+        }
+      }
+
+      if (!googleUser) {
         throw new Error('Google token verification failed');
       }
-      googleUser = await googleRes.json();
     } catch {
       throw new UnauthorizedError('Invalid or expired Google authentication token');
     }
@@ -575,8 +652,9 @@ export const googleAuth = async (req: Request, res: Response, next: NextFunction
       throw new UnauthorizedError('Unable to retrieve email from Google profile');
     }
 
-    // If GOOGLE_CLIENT_ID is configured, verify audience/azp
+    // If GOOGLE_CLIENT_ID is configured, verify audience/azp (for direct Google tokens)
     if (
+      !googleUser.isFirebase &&
       config.google.clientId &&
       googleUser.aud !== config.google.clientId &&
       googleUser.azp !== config.google.clientId

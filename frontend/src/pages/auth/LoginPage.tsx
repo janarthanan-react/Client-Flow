@@ -3,12 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Layers, Eye, EyeOff, Lock, Mail, Sparkles } from 'lucide-react';
+import { Layers, Eye, EyeOff, Lock, Mail, Sparkles, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
-import { GoogleLoginButton } from '../../components/auth/GoogleLoginButton';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -24,6 +23,7 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [unregisteredError, setUnregisteredError] = useState<string | null>(null);
 
   const {
     register,
@@ -40,11 +40,21 @@ export const LoginPage: React.FC = () => {
   const onSubmit = async (data: LoginFormData) => {
     try {
       setIsLoading(true);
+      setUnregisteredError(null);
       await login(data);
       success('Welcome back!', 'Successfully logged in to your CRM workspace.');
       navigate('/dashboard');
     } catch (err: any) {
-      toastError('Login Failed', err.response?.data?.message || 'Invalid email or password');
+      const isDemo = data.email === 'demo@clientflow.io';
+      const errMsg = isDemo
+        ? 'Login failed. Please check the demo credentials.'
+        : "Your ID isn't registered yet! Please try the Demo Account.";
+      
+      setUnregisteredError(errMsg);
+      toastError(
+        isDemo ? 'Login Failed' : 'ID Not Registered',
+        errMsg
+      );
     } finally {
       setIsLoading(false);
     }
@@ -53,6 +63,7 @@ export const LoginPage: React.FC = () => {
   const fillDemoAccount = () => {
     setValue('email', 'demo@clientflow.io');
     setValue('password', 'ClientFlow2025!');
+    setUnregisteredError(null);
   };
 
   return (
@@ -103,18 +114,23 @@ export const LoginPage: React.FC = () => {
         </div>
 
         <div className="bg-white/95 backdrop-blur-md py-8 px-6 sm:px-10 shadow-2xl rounded-3xl border border-slate-200/90">
-          <GoogleLoginButton mode="signin" className="mb-5" />
-
-          <div className="relative mb-5">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
+          {/* Unregistered Alert Banner */}
+          {unregisteredError && (
+            <div className="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-start gap-3 shadow-xs">
+              <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-bold text-rose-950">{unregisteredError}</p>
+                <button
+                  type="button"
+                  onClick={fillDemoAccount}
+                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition-colors shadow-xs"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Auto Fill Demo Account
+                </button>
+              </div>
             </div>
-            <div className="relative flex justify-center text-[11px] uppercase">
-              <span className="bg-white px-2.5 text-slate-400 font-bold tracking-wider">
-                Or continue with email
-              </span>
-            </div>
-          </div>
+          )}
 
           <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
             <div>
@@ -179,3 +195,5 @@ export const LoginPage: React.FC = () => {
     </div>
   );
 };
+
+export default LoginPage;

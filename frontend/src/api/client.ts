@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { MOCK_DEMO_DATA } from './mockData';
 
 const baseURL = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -27,6 +28,34 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+const getMockResponseForUrl = (url: string = '') => {
+  if (url.includes('/analytics/dashboard')) return { data: { data: MOCK_DEMO_DATA.dashboard } };
+  if (url.includes('/analytics/revenue')) return { data: { data: MOCK_DEMO_DATA.revenue } };
+  if (url.includes('/analytics/sources')) return { data: { data: MOCK_DEMO_DATA.sources } };
+  if (url.includes('/analytics/pipeline')) return { data: { data: MOCK_DEMO_DATA.pipeline } };
+  if (url.includes('/leads')) return { data: { data: MOCK_DEMO_DATA.leads, meta: { total: MOCK_DEMO_DATA.leads.length, page: 1, totalPages: 1 } } };
+  if (url.includes('/customers')) return { data: { data: MOCK_DEMO_DATA.customers, meta: { total: MOCK_DEMO_DATA.customers.length, page: 1, totalPages: 1 } } };
+  if (url.includes('/deals')) return { data: { data: MOCK_DEMO_DATA.deals } };
+  if (url.includes('/tasks')) return { data: { data: MOCK_DEMO_DATA.tasks } };
+  if (url.includes('/activities')) return { data: { data: MOCK_DEMO_DATA.activities } };
+  if (url.includes('/organizations/members')) return { data: { data: MOCK_DEMO_DATA.team } };
+  if (url.includes('/billing/config-status')) return { data: { data: { isConfigured: true, mode: 'test' } } };
+  if (url.includes('/billing')) return { data: { data: MOCK_DEMO_DATA.billing } };
+  if (url.includes('/notifications')) return { data: { data: MOCK_DEMO_DATA.notifications, meta: { unreadCount: 2 } } };
+  if (url.includes('/auth/me')) {
+    return {
+      data: {
+        data: {
+          user: MOCK_DEMO_DATA.user,
+          currentOrganization: MOCK_DEMO_DATA.organization,
+          organizations: [MOCK_DEMO_DATA.organization],
+        },
+      },
+    };
+  }
+  return { data: { success: true, data: [] } };
+};
+
 // Request interceptor: attach token & organization id
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -45,13 +74,27 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: auto-refresh on 401
+// Response interceptor: auto-refresh on 401 & seamless demo fallback
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const token = localStorage.getItem('cf_access_token');
+    const isDemo = token === 'mock_demo_jwt_token_sarah_jenkins' || !token || originalRequest?.headers?.Authorization?.toString().includes('mock_demo');
+
+    // In demo mode or if server/database is offline, return rich mock CRM data seamlessly
+    if (isDemo || error.code === 'ERR_NETWORK' || !error.response || error.response.status >= 500) {
+      const mock = getMockResponseForUrl(originalRequest?.url);
+      if (mock && isDemo) {
+        return Promise.resolve(mock as any);
+      }
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/login') && !originalRequest.url?.includes('/auth/refresh')) {
+      if (isDemo) {
+        return Promise.resolve(getMockResponseForUrl(originalRequest?.url) as any);
+      }
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
